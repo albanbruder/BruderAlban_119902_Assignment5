@@ -4,11 +4,11 @@
 
 int main(int argc, char *argv[])
 {
-  unsigned int n = 200;
-  int minX = -10000;
-  int maxX = 10000;
-  int minY = -10000;
-  int maxY = 10000;
+  unsigned int n = 10;
+  int minX = 0;
+  int maxX = 10;
+  int minY = 0;
+  int maxY = 10;
 
   auto segments = generateRandomSegements(n, minX, maxX, minY, maxY);
 

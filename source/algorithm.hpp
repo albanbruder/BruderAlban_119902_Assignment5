@@ -2,12 +2,14 @@
 #define BUW_ALGORITHM_HPP
 
 #include "point.hpp"
+#include "line.hpp"
 #include "segment.hpp"
 #include "set.hpp"
 #include "event.hpp"
 #include "utils.hpp"
 
 #include <vector>
+#include <math.h>
 
 struct lessEventX {
   bool operator() (Event const& lhs, Event const& rhs) const {
@@ -39,7 +41,7 @@ std::vector<Point> bentleyOttmannIntersections(std::vector<Segment> const& segme
 
     Segment segment = event.s1;
     float lineX = event.point.x;
-    Segment sweepLine{
+    Line sweepLine{
       {lineX, 0},
       {lineX, 1}
     };
@@ -54,29 +56,29 @@ std::vector<Point> bentleyOttmannIntersections(std::vector<Segment> const& segme
       // sort after insertion by point of intersection with sweepline
       buw::mergesort(std::begin(openSegments), std::end(openSegments), 
         [&sweepLine](Segment const& lhs, Segment const& rhs) {
-          float y1 = intersectLine(sweepLine, lhs).second.y;
-          float y2 = intersectLine(sweepLine, rhs).second.y;
+          float y1 = intersect(sweepLine, lhs).y;
+          float y2 = intersect(sweepLine, rhs).y;
           return y1 < y2;
         }
       );
 
-      auto it = std::find(std::cbegin(openSegments), std::cend(openSegments), segment);
-      auto prev = it - 1;
-      auto next = it + 1;
-
       // if there is a previous segment
-      if(prev != (std::cbegin(openSegments) - 1)) {
-        std::pair<bool, Point> result = intersectSegment(segment, *prev);
-        if(result.first) {
-          events.insert({"intersection", result.second, *prev, segment});
+      if(hasPrevious(openSegments, segment)) {
+        Segment prev = getPrevious(openSegments, segment);
+
+        Point intersection = intersect(segment, prev);
+        if(!isinf(intersection.x)) {
+          events.insert({"intersection", intersection, prev, segment});
         }
       }
 
       // if there is a next segment
-      if(next != (std::cend(openSegments))) {
-        std::pair<bool, Point> result = intersectSegment(segment, *next);
-        if(result.first) {
-          events.insert({"intersection", result.second, segment, *next});
+      if(hasNext(openSegments, segment)) {
+        Segment next = getNext(openSegments, segment);
+
+        Point intersection = intersect(segment, next);
+        if(!isinf(intersection.x)) {
+          events.insert({"intersection", intersection, segment, next});
         }
       }
 
@@ -85,20 +87,20 @@ std::vector<Point> bentleyOttmannIntersections(std::vector<Segment> const& segme
      * Second case: A segment ends.
      */
     else if(event.type == "close") {
-      auto it = std::find(std::cbegin(openSegments), std::cend(openSegments), segment);
-      auto prev = it - 1;
-      auto next = it + 1;
 
       // if there is a previous and a next segment
-      if(prev != (std::cbegin(openSegments) - 1) && next != (std::cend(openSegments))) {
-        std::pair<bool, Point> result = intersectSegment(*prev, *next);
-        if(result.first && result.second.x >= lineX) {
-          events.insert({"intersection", result.second, *prev, *next});
+      if(hasPrevious(openSegments, segment) && hasNext(openSegments, segment)) {
+        Segment prev = getPrevious(openSegments, segment);
+        Segment next = getNext(openSegments, segment);
+
+        Point intersection = intersect(prev, next);
+        if(!isinf(intersection.x) && intersection.x > lineX) {
+          events.insert({"intersection", intersection, prev, next});
         }
       }
 
       // close segment
-      openSegments.erase(it);
+      openSegments.erase(std::find(std::begin(openSegments), std::end(openSegments), segment));
     }
     /*
      * Third case: An intersection.
@@ -106,26 +108,27 @@ std::vector<Point> bentleyOttmannIntersections(std::vector<Segment> const& segme
     else { // event.type == "intersection"
       intersections.push_back(event.point);
 
+      if(hasPrevious(openSegments, event.s1)) {
+        Segment prev = getPrevious(openSegments, event.s1);
+
+        Point intersection = intersect(event.s2, prev);
+        if(!isinf(intersection.x) && intersection.x > lineX) {
+          events.insert({"intersection", intersection, prev, event.s2});
+        }
+      }
+
+      if(hasNext(openSegments, event.s2)) {
+        Segment next = getNext(openSegments, event.s2);
+
+        Point intersection = intersect(next, event.s1);
+        if(!isinf(intersection.x) && intersection.x > lineX) {
+          events.insert({"intersection", intersection, event.s1, next});
+        }
+      }
+
       auto it1 = std::find(std::begin(openSegments), std::end(openSegments), event.s1);
       auto it2 = std::find(std::begin(openSegments), std::end(openSegments), event.s2);
-      auto next = it1 - 1;
-      auto prev = it2 + 1;
-
       std::iter_swap(it1, it2);
-
-      if(next != (std::begin(openSegments) - 1)) {
-        std::pair<bool, Point> result = intersectSegment(event.s2, *next);
-        if(result.first && result.second.x > lineX) {
-          events.insert({"intersection", result.second, *next, event.s2});
-        }
-      }
-
-      if(prev != (std::end(openSegments))) {
-        std::pair<bool, Point> result = intersectSegment(*prev, event.s1);
-        if(result.first && result.second.x > lineX) {
-          events.insert({"intersection", result.second, event.s1, *prev});
-        }
-      }
     }
   }
 
@@ -143,9 +146,9 @@ std::vector<Point> bruteForceIntersections(std::vector<Segment> const& segments)
         continue;
       }
 
-      auto result = intersectSegment(*it1, *it2);
-      if(result.first) {
-        intersections.push_back(result.second);
+      Point intersection = intersect(*it1, *it2);
+      if(!isinf(intersection.x)) {
+        intersections.push_back(intersection);
       }
     }
   }

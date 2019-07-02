@@ -3,6 +3,7 @@
 #include <time.h>
 #include <algorithm>
 
+#include "line.hpp"
 #include "segment.hpp"
 
 Point generateRandomPoint(int minX, int maxX, int minY, int maxY)
@@ -64,43 +65,73 @@ bool between(Point const& p, Point const& a, Point const& b) {
   return true;
 }
 
-std::pair<bool, Point> intersectLine(Segment const& s1, Segment const& s2) {
-  Point p0{0,0};
+Point intersect(Line const& line1, Line const& line2) {
+  float a1 = line1.b.y - line1.a.y;
+  float b1 = line1.a.x - line1.b.x;
+  float c1 = a1*line1.a.x + b1*line1.a.y;
 
-  float a1 = s1.b.y - s1.a.y;
-  float b1 = s1.a.x - s1.b.x;
-  float c1 = a1*s1.a.x + b1*s1.a.y;
-
-  float a2 = s2.b.y - s2.a.y;
-  float b2 = s2.a.x - s2.b.x;
-  float c2 = a2*s2.a.x + b2*s2.a.y;
+  float a2 = line2.b.y - line2.a.y;
+  float b2 = line2.a.x - line2.b.x;
+  float c2 = a2*line2.a.x + b2*line2.a.y;
 
   float det = a1*b2 - a2*b1;
   if(det == 0) {
-    // segments are parallel
-    return std::make_pair(false, p0);
+    // lines are parallel
+    return Point();
   }
 
   float x = (b2*c1 - b1*c2) / det;
   float y = (a1*c2 - a2*c1) / det;
-  Point p{ x, y };
-  return std::make_pair(true, p);
+  return Point{ x, y };
 }
 
-std::pair<bool, Point> intersectSegment(Segment const& s1, Segment const& s2)
-{
-  Point p0{0,0};
-  auto result = intersectLine(s1, s2);
-  if(!result.first) {
-    return result;
-  }
+Point intersect(Line const& line, Segment const& segment) {
+  Point intersection = intersect(line, Line{ segment.a, segment.b });
 
-  Point p = result.second;
+  if(!between(intersection, segment.a, segment.b)) {
+    return Point();
+  } else {
+    return intersection;
+  }
+}
+
+Point intersect(Segment const& segment1, Segment const& segment2)
+{
+  Point intersection = intersect(Line{ segment1.a, segment1.b }, segment2);
 
   // check for both segments if Point(x,y) is between Point a and b
-  if(between(p, s1.a, s1.b) && between(p, s2.a, s2.b)) {
-    return std::make_pair(true, p);
+  if(!between(intersection, segment1.a, segment1.b)) {
+    return Point();
   } else {
-    return std::make_pair(false, p0);
+    return intersection;
   }
+}
+
+
+template <typename Container, typename T>
+bool hasPrevious(Container const& c, T const& v)
+{
+  auto it = std::find(std::cbegin(c), std::cend(c), v) - 1;
+  return (it != (std::cbegin(c) - 1));
+}
+
+template <typename Container, typename T>
+T getPrevious(Container const& c, T const& v)
+{
+  auto it = std::find(std::cbegin(c), std::cend(c), v) - 1;
+  return *it;
+}
+
+template <typename Container, typename T>
+bool hasNext(Container const& c, T const& v)
+{
+  auto it = std::find(std::cbegin(c), std::cend(c), v) + 1;
+  return (it != std::cend(c));
+}
+
+template <typename Container, typename T>
+T getNext(Container const& c, T const& v)
+{
+  auto it = std::find(std::cbegin(c), std::cend(c), v) + 1;
+  return *it;
 }
