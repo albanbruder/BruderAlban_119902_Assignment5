@@ -2,11 +2,12 @@
 #define BUW_POINT_HPP
 
 #include <ostream>
+#include <limits>
 
 struct Point
 {
-  float x;
-  float y;
+  float x = std::numeric_limits<float>::infinity();
+  float y = std::numeric_limits<float>::infinity();
 };
 
 std::ostream& operator<<(std::ostream& os, Point const& p)
