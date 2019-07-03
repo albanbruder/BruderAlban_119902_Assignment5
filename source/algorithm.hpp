@@ -10,6 +10,7 @@
 
 #include <vector>
 #include <math.h>
+#include <iostream>
 
 struct lessEventX {
   bool operator() (Event const& lhs, Event const& rhs) const {
@@ -94,7 +95,7 @@ std::vector<Point> bentleyOttmannIntersections(std::vector<Segment> const& segme
         Segment next = getNext(openSegments, segment);
 
         Point intersection = intersect(prev, next);
-        if(!isinf(intersection.x) && intersection.x > lineX) {
+        if(!isinf(intersection.x) && intersection.x >= lineX) {
           events.insert({"intersection", intersection, prev, next});
         }
       }
@@ -108,8 +109,12 @@ std::vector<Point> bentleyOttmannIntersections(std::vector<Segment> const& segme
     else { // event.type == "intersection"
       intersections.push_back(event.point);
 
-      if(hasPrevious(openSegments, event.s1)) {
-        Segment prev = getPrevious(openSegments, event.s1);
+      auto it1 = std::find(std::begin(openSegments), std::end(openSegments), event.s1);
+      auto it2 = std::find(std::begin(openSegments), std::end(openSegments), event.s2);
+      std::iter_swap(it1, it2);
+
+      if(hasPrevious(openSegments, event.s2)) {
+        Segment prev = getPrevious(openSegments, event.s2);
 
         Point intersection = intersect(event.s2, prev);
         if(!isinf(intersection.x) && intersection.x > lineX) {
@@ -117,18 +122,14 @@ std::vector<Point> bentleyOttmannIntersections(std::vector<Segment> const& segme
         }
       }
 
-      if(hasNext(openSegments, event.s2)) {
-        Segment next = getNext(openSegments, event.s2);
+      if(hasNext(openSegments, event.s1)) {
+        Segment next = getNext(openSegments, event.s1);
 
         Point intersection = intersect(next, event.s1);
         if(!isinf(intersection.x) && intersection.x > lineX) {
           events.insert({"intersection", intersection, event.s1, next});
         }
       }
-
-      auto it1 = std::find(std::begin(openSegments), std::end(openSegments), event.s1);
-      auto it2 = std::find(std::begin(openSegments), std::end(openSegments), event.s2);
-      std::iter_swap(it1, it2);
     }
   }
 
