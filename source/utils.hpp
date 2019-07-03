@@ -2,62 +2,21 @@
 #include <stdlib.h>
 #include <time.h>
 #include <algorithm>
+#include <math.h>
 
 #include "line.hpp"
 #include "segment.hpp"
 
-Point generateRandomPoint(int minX, int maxX, int minY, int maxY)
-{
-  int x = minX + std::rand() % (( maxX + 1 ) - minX);
-  int y = minY + std::rand() % (( maxY + 1 ) - minY);
-  return Point{x, y};
-}
-
-std::vector<Segment> generateRandomSegements(unsigned int n, int minX, int maxX, int minY, int maxY)
-{
-  srand(time(0));
-  
-  std::vector<Point> points;
-  std::vector<Segment> segments;
-  while(segments.size() < n) {
-    Point a = generateRandomPoint(minX, maxX, minY, maxY);
-    Point b = generateRandomPoint(minX, maxX, minY, maxY);
-    
-    // check if line is vertical
-    // or inverse
-    if(a.x >= b.x) {
-      continue;
-    }
-
-    // check if one of the points already exists
-    auto it = std::find_if(std::cbegin(points), std::cend(points), [a, b](Point const& p) {
-      return (a.x == p.x && a.y == p.y) || (b.x == p.x && b.y == p.y);
-    });
-    if(it != std::cend(points)) {
-      continue;
-    }
-
-    points.push_back(a);
-    points.push_back(b);
-    segments.push_back({ a, b });
-  }
-
-  return segments;
-}
-
-Segment findSegment(std::vector<Segment> const& segments, Point const& p) {
-  auto it = std::find_if(
-      std::cbegin(segments), 
-      std::cend(segments), 
-      [&p](Segment const& s) { return (s.a == p || s.b == p); }
-    );
-  return *it;
-}
-
+/**
+ * Checks if a point p is in the bounding box spanned by points a and b.
+ */
 bool between(Point const& p, Point const& a, Point const& b) {
+  // check for x-coordinates
   if(p.x < std::min(a.x, b.x) || p.x > std::max(a.x, b.x)) {
     return false;
   }
+
+  // check for y-coordinates
   if(p.y < std::min(a.y, b.y) || p.y > std::max(a.y, b.y)) {
     return false;
   }
@@ -65,18 +24,25 @@ bool between(Point const& p, Point const& a, Point const& b) {
   return true;
 }
 
+/**
+ * Intersects 2 lines. (not segments)
+ * Returns the point of intersection or a point with x and y set to infinity.
+ */
 Point intersect(Line const& line1, Line const& line2) {
+  // a1*x + b1*y = c1
   float a1 = line1.b.y - line1.a.y;
   float b1 = line1.a.x - line1.b.x;
   float c1 = a1*line1.a.x + b1*line1.a.y;
 
+  // a2*x + b2*y = c2
   float a2 = line2.b.y - line2.a.y;
   float b2 = line2.a.x - line2.b.x;
   float c2 = a2*line2.a.x + b2*line2.a.y;
 
   float det = a1*b2 - a2*b1;
+
+  // lines are parallel
   if(det == 0) {
-    // lines are parallel
     return Point();
   }
 
@@ -85,6 +51,10 @@ Point intersect(Line const& line1, Line const& line2) {
   return Point{ x, y };
 }
 
+/**
+ * Intersects a line and a segment.
+ * Returns the point of intersection or a point with x and y set to infinity.
+ */
 Point intersect(Line const& line, Segment const& segment) {
   Point intersection = intersect(line, Line{ segment.a, segment.b });
 
@@ -95,6 +65,9 @@ Point intersect(Line const& line, Segment const& segment) {
   }
 }
 
+/**
+ * Intersect 2 segments.
+ */
 Point intersect(Segment const& segment1, Segment const& segment2)
 {
   Point intersection = intersect(Line{ segment1.a, segment1.b }, segment2);
@@ -107,31 +80,77 @@ Point intersect(Segment const& segment1, Segment const& segment2)
   }
 }
 
-
-template <typename Container, typename T>
-bool hasPrevious(Container const& c, T const& v)
+/**
+ * Generate a random Point.
+ */
+Point generateRandomPoint(int minX, int maxX, int minY, int maxY)
 {
-  auto it = std::find(std::cbegin(c), std::cend(c), v) - 1;
-  return (it != (std::cbegin(c) - 1));
+  float x = minX + std::rand() % (( maxX + 1 ) - minX);
+  float y = minY + std::rand() % (( maxY + 1 ) - minY);
+  return Point{x, y};
 }
 
-template <typename Container, typename T>
-T getPrevious(Container const& c, T const& v)
+/**
+ * Generate a random vector of segments.
+ */
+std::vector<Segment> generateRandomSegements(unsigned int n, int minX, int maxX, int minY, int maxY)
 {
-  auto it = std::find(std::cbegin(c), std::cend(c), v) - 1;
-  return *it;
-}
+  // initialize the randomizer
+  srand(time(0));
+  
+  std::vector<Point> points;
+  std::vector<Segment> segments;
 
-template <typename Container, typename T>
-bool hasNext(Container const& c, T const& v)
-{
-  auto it = std::find(std::cbegin(c), std::cend(c), v) + 1;
-  return (it != std::cend(c));
-}
+  // as long as the list is not full
+  while(segments.size() < n) {
+    Point a = generateRandomPoint(minX, maxX, minY, maxY);
+    Point b = generateRandomPoint(minX, maxX, minY, maxY);
+    
+    // check if line is vertical
+    // or inverse
+    if(a.x >= b.x) {
+      continue;
+    }
 
-template <typename Container, typename T>
-T getNext(Container const& c, T const& v)
-{
-  auto it = std::find(std::cbegin(c), std::cend(c), v) + 1;
-  return *it;
+    // check if one of the points already exists
+    auto it = std::find_if(std::cbegin(points), std::cend(points), [a, b](Point const& p) {
+      return a.x == p.x || b.x == p.x;
+    });
+    if(it != std::cend(points)) {
+      continue;
+    }
+
+    /* std::vector<Point> intersections;
+    bool duplicateFound = false;
+    for(auto seg : segments) {
+      Point intersection = intersect(seg, Segment{a, b});
+      if(isinf(intersection.x)) {
+        continue;
+      }
+
+      auto it = std::find_if(std::cbegin(intersections), std::cend(intersections), [intersection](Point const& p) {
+        return p.x == intersection.x;
+      });
+      if(it != std::cend(intersections)) {
+        duplicateFound = true;
+      } else {
+        intersections.push_back(intersection);
+      }
+    }
+
+    if(duplicateFound) {
+      continue;
+    }
+
+    points.push_back(a);
+    points.push_back(b);
+
+    for(auto p : intersections) {
+      points.push_back(p);
+    } */
+
+    segments.push_back({ a, b });
+  }
+
+  return segments;
 }

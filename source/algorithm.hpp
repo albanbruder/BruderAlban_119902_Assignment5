@@ -12,16 +12,16 @@
 #include <math.h>
 #include <iostream>
 
-struct lessEventX {
-  bool operator() (Event const& lhs, Event const& rhs) const {
-    return lhs.point.x < rhs.point.x;
-  }
-};
-
+/**
+ * The Bentley-Ottmann algorithm for finding 
+ * the intersections in a set.
+ */
 std::vector<Point> bentleyOttmannIntersections(std::vector<Segment> const& segments)
 {
-  Set<Event, lessEventX> events;
+  // get all the point
+  Set<Event> events;
   for(Segment const& segment : segments) {
+    // ensure that correct event type is used
     if(segment.a.x < segment.b.x) {
       events.insert({ "open", segment.a, segment });
       events.insert({ "close", segment.b, segment });
@@ -31,11 +31,10 @@ std::vector<Point> bentleyOttmannIntersections(std::vector<Segment> const& segme
     }
   }
 
-
-
   std::vector<Segment> openSegments;
   std::vector<Point> intersections;
 
+  // as long as there are unhandled points or intersections
   while (events.size() > 0) {
     // get and erase first element in events
     Event event = events.pop_front();
@@ -63,71 +62,99 @@ std::vector<Point> bentleyOttmannIntersections(std::vector<Segment> const& segme
         }
       );
 
-      // if there is a previous segment
-      if(hasPrevious(openSegments, segment)) {
-        Segment prev = getPrevious(openSegments, segment);
+      // get an iterator pointing at the segment in openSegments
+      auto it = std::find(std::cbegin(openSegments), std::cend(openSegments), segment);
 
-        Point intersection = intersect(segment, prev);
+      // if there is a previous segment
+      // intersect with previous neighbor
+      if(it != std::cbegin(openSegments)) {
+        auto prev = std::prev(it);
+
+        Point intersection = intersect(*it, *prev);
+
+        // if there is a intersection -> insert into events
         if(!isinf(intersection.x)) {
-          events.insert({"intersection", intersection, prev, segment});
+          events.insert({"intersection", intersection, *prev, *it});
         }
       }
 
       // if there is a next segment
-      if(hasNext(openSegments, segment)) {
-        Segment next = getNext(openSegments, segment);
+      // intersect with next neighbor
+      if(std::next(it) != std::cend(openSegments)) {
+        auto next = std::next(it);
 
-        Point intersection = intersect(segment, next);
+        Point intersection = intersect(*it, *next);
+
+        // if there is a intersection -> insert into events
         if(!isinf(intersection.x)) {
-          events.insert({"intersection", intersection, segment, next});
+          events.insert({"intersection", intersection, *it, *next});
         }
       }
 
     }
+
+
     /*
      * Second case: A segment ends.
      */
     else if(event.type == "close") {
+      // get an iterator pointing at the current segment
+      auto it = std::find(std::cbegin(openSegments), std::cend(openSegments), segment);
 
       // if there is a previous and a next segment
-      if(hasPrevious(openSegments, segment) && hasNext(openSegments, segment)) {
-        Segment prev = getPrevious(openSegments, segment);
-        Segment next = getNext(openSegments, segment);
+      // intersect previous and next neighbor
+      if(it != std::cbegin(openSegments) && std::next(it) != std::cend(openSegments)) {
+        auto prev = std::prev(it);
+        auto next = std::next(it);
 
-        Point intersection = intersect(prev, next);
+        Point intersection = intersect(*prev, *next);
+
+        // if there is a intersection -> insert into events
         if(!isinf(intersection.x) && intersection.x >= lineX) {
-          events.insert({"intersection", intersection, prev, next});
+          events.insert({"intersection", intersection, *prev, *next});
         }
       }
 
-      // close segment
-      openSegments.erase(std::find(std::begin(openSegments), std::end(openSegments), segment));
+      // remove segment from openSegments
+      openSegments.erase(it);
     }
+
+
     /*
      * Third case: An intersection.
      */
     else { // event.type == "intersection"
+      // add intersection point to output list
       intersections.push_back(event.point);
 
+      // get iterators for the intersecting segments
       auto it1 = std::find(std::begin(openSegments), std::end(openSegments), event.s1);
       auto it2 = std::find(std::begin(openSegments), std::end(openSegments), event.s2);
+
+      // swap intersecting segments
       std::iter_swap(it1, it2);
 
-      if(hasPrevious(openSegments, event.s2)) {
-        Segment prev = getPrevious(openSegments, event.s2);
+      // if segment_2 has a previous neighbor
+      if(it1 != std::begin(openSegments)) {
+        auto prev = std::prev(it1);
 
-        Point intersection = intersect(event.s2, prev);
+        Point intersection = intersect(*it1, *prev);
+
+        // if there is a intersection -> insert into events
         if(!isinf(intersection.x) && intersection.x > lineX) {
-          events.insert({"intersection", intersection, prev, event.s2});
+          events.insert({"intersection", intersection, *prev, *it1});
         }
       }
 
-      if(hasNext(openSegments, event.s1)) {
-        Segment next = getNext(openSegments, event.s1);
+      // if segment_1 has a next neighbor
+      if(std::next(it2) != std::end(openSegments)) {
+        auto next = std::next(it2);
 
-        Point intersection = intersect(next, event.s1);
+        Point intersection = intersect(*next, *it2);
+
+        // if there is a intersection -> insert into events
         if(!isinf(intersection.x) && intersection.x > lineX) {
-          events.insert({"intersection", intersection, event.s1, next});
+          events.insert({"intersection", intersection, *it2, *next});
         }
       }
     }
@@ -137,6 +164,10 @@ std::vector<Point> bentleyOttmannIntersections(std::vector<Segment> const& segme
 }
 
 
+/**
+ * Returns all intersections between the given segments.
+ * Uses brute force.
+ */
 std::vector<Point> bruteForceIntersections(std::vector<Segment> const& segments)
 {
   std::vector<Point> intersections;

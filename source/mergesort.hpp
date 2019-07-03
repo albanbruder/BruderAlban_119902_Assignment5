@@ -6,8 +6,12 @@
 
 namespace buw {
 
+  /**
+   * A generic implementation of the mergesort algorithm
+   */
   template <typename Iterator, typename Comparator>
   void mergesort(Iterator const& first, Iterator const& last, Comparator const& comp) {
+    // number of elements in the list
     int d = last - first;
     std::vector<typename Iterator::value_type> tmp;
     
@@ -16,6 +20,7 @@ namespace buw {
       return;
     }
 
+    // call recursively
     Iterator median = first + d/2;
     mergesort(first, median, comp);
     mergesort(median, last, comp);
@@ -33,6 +38,7 @@ namespace buw {
       }
     }
 
+    // if there any items left, add them to the end
     while(it1 != median) {
       tmp.push_back(*it1);
       it1++;
